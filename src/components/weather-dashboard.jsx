@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Droplets,
   Gauge,
@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const API_BASE = "https://api.open-meteo.com/v1/forecast";
 const GEOCODING_BASE = "https://geocoding-api.open-meteo.com/v1/search";
+const THEME_STORAGE_KEY = "weatherly-theme";
 const CITIES = [
   { name: "Vancouver", country: "Canada", latitude: 49.2827, longitude: -123.1207 },
   { name: "Copenhagen", country: "Denmark", latitude: 55.6761, longitude: 12.5683 },
@@ -249,6 +250,10 @@ export default function WeatherDashboard() {
   const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [forecast, setForecast] = useState(null);
   const [cities, setCities] = useState([]);
+  const [theme, setTheme] = useState(() => {
+    const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return ["dark", "light", "system"].includes(storedTheme) ? storedTheme : "dark";
+  });
   const [unit, setUnit] = useState("celsius");
   const [range, setRange] = useState("week");
   const [query, setQuery] = useState("");
@@ -256,6 +261,24 @@ export default function WeatherDashboard() {
   const [loadingLocation, setLoadingLocation] = useState(DEFAULT_LOCATION.name);
   const [searching, setSearching] = useState(false);
   const requestId = useRef(0);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const systemTheme = window.matchMedia("(prefers-color-scheme: light)");
+    const applyTheme = () => {
+      const resolvedTheme = theme === "system" ? (systemTheme.matches ? "light" : "dark") : theme;
+      root.dataset.theme = resolvedTheme;
+      root.style.colorScheme = resolvedTheme;
+    };
+
+    applyTheme();
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+
+    if (theme === "system") {
+      systemTheme.addEventListener("change", applyTheme);
+      return () => systemTheme.removeEventListener("change", applyTheme);
+    }
+  }, [theme]);
 
   useEffect(() => {
     let active = true;
@@ -425,6 +448,17 @@ export default function WeatherDashboard() {
           >
             {unit === "celsius" ? "°C / °F" : "°F / °C"}
           </Button>
+          <select
+            className="theme-select"
+            value={theme}
+            onChange={(event) => setTheme(event.target.value)}
+            aria-label="Color theme"
+            title="Color theme"
+          >
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
           <Button
             className="icon-button"
             size="icon"
