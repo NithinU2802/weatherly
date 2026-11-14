@@ -252,7 +252,7 @@ export default function WeatherDashboard() {
   const [cities, setCities] = useState([]);
   const [theme, setTheme] = useState(() => {
     const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-    return ["dark", "light", "system"].includes(storedTheme) ? storedTheme : "dark";
+    return ["dark", "light", "system"].includes(storedTheme) ? storedTheme : "system";
   });
   const [unit, setUnit] = useState("celsius");
   const [range, setRange] = useState("week");
