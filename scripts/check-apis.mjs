@@ -17,12 +17,45 @@ forecastUrl.search = new URLSearchParams({
   forecast_days: "7",
 });
 
+const MAX_ATTEMPTS = 3;
+
 async function getJson(url, label) {
-  const response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
-  if (response.status !== 200) {
-    throw new Error(`${label} returned HTTP ${response.status}; expected HTTP 200.`);
+  let lastError;
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    let response;
+    try {
+      response = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+    } catch (error) {
+      lastError = error;
+    }
+
+    if (response && response.status !== 200) {
+      const error = new Error(`${label} returned HTTP ${response.status}; expected HTTP 200.`);
+      if (response.status !== 429 && response.status < 500) {
+        throw error;
+      }
+      lastError = error;
+    } else if (response) {
+      try {
+        return await response.json();
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (attempt < MAX_ATTEMPTS) {
+      console.warn(
+        `${label} request failed on attempt ${attempt}/${MAX_ATTEMPTS}; retrying.`,
+        lastError,
+      );
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+    }
   }
-  return response.json();
+
+  throw new Error(`${label} request failed after ${MAX_ATTEMPTS} attempts.`, {
+    cause: lastError,
+  });
 }
 
 const geocoding = await getJson(geocodingUrl, "Open-Meteo geocoding API");
